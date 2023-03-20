@@ -1,6 +1,7 @@
 //! This module aims at abstracting the usage of `gccrs` via Rust code. This is a simple
 //! wrapper around spawning a `gccrs` command with various arguments
 
+use std::env;
 use super::args::{Args, ArgsCollection, CrateType};
 use super::{config::GccrsConfig, env_args::EnvArgs, rustc_args::RustcArgs, Error, Result};
 
@@ -19,6 +20,16 @@ impl Gccrs {
         Err(Error::Installation)
     }
 
+    fn get_gccrs_bin() -> String {
+        let custom_bin = env::var("GCCRS_CUSTOM_BIN");
+
+        if let Ok(bin) = custom_bin {
+            return bin.clone();
+        }
+
+        "gccrs".to_string()
+    }
+
     /// Output fake information because gccrs does not implement the required feature
     /// yet. This function is only available in debug mode, not release, in order for
     /// users to be aware of the limitations.
@@ -27,7 +38,7 @@ impl Gccrs {
     }
 
     fn dump_config() -> CmdResult<ExitStatus> {
-        Command::new("gccrs")
+        Command::new(Gccrs::get_gccrs_bin())
             .arg("-x")
             .arg("rust")
             .arg("-frust-dump-target_options")
@@ -36,7 +47,7 @@ impl Gccrs {
     }
 
     fn is_installed() -> bool {
-        which::which("gccrs").is_ok()
+        which::which(Gccrs::get_gccrs_bin().as_str()).is_ok()
     }
 
     /// Install `gccrs` if the binary is not found in the path
@@ -66,7 +77,7 @@ impl Gccrs {
     }
 
     fn spawn_with_args(args: &[String]) -> CmdResult<ExitStatus> {
-        Command::new("gccrs").args(args).status()
+        Command::new(Gccrs::get_gccrs_bin()).args(args).status()
     }
 
     /// Spawn a `gccrs` command with arguments extracted from a `rustc` invokation

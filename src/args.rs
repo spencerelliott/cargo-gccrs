@@ -3,6 +3,7 @@
 
 use std::convert::TryFrom;
 use std::path::{Path, PathBuf};
+use std::env;
 
 use getopts::Matches;
 
@@ -99,7 +100,10 @@ impl<'a> From<&'a str> for CrateType {
             "bin" => CrateType::Bin,
             "dylib" => CrateType::DyLib,
             "staticlib" => CrateType::StaticLib,
-            _ => CrateType::Unknown,
+            _ => {
+                println!("{} is invalid CrateType for GCCRS", s);
+                CrateType::Unknown
+            },
         }
     }
 }
@@ -187,8 +191,28 @@ impl Args {
     /// Create arguments usable when spawning a process from an instance of [`Args`]
     pub fn as_args(&self) -> Result<Vec<String>> {
         // `rustc` generates position independant code
-        let mut args = vec![String::from("-fPIE"), String::from("-pie")];
-        args.append(&mut self.source_files.clone());
+        // -ml -m4-single-only -Wl,-Ttext=0x8c020000 -Wl,--gc-sections -T$ENV{KOS_BASE}/utils/ldscripts/shlelf-naomi.xc -nodefaultlibs
+        //let mut args = vec![String::from("-fPIE"), String::from("-pie")];
+        let mut args = vec![];
+
+        let env_vars = env::var("GCCRS_EXTRA_FLAGS");
+        let prelink_vars = env::var("GCCRS_PRELINK_OBJS");
+
+        if let Ok(vars) = env_vars {
+            let split_vars = vars.split(' ').collect::<Vec<&str>>();
+            let mut split_strings = split_vars.into_iter().map(|s| s.to_string()).collect();
+            args.append(&mut split_strings);
+        }
+
+        let mut sources = self.source_files.clone();
+
+        if let Ok(prelinks) = prelink_vars {
+            let split_prelinks = prelinks.split(' ').collect::<Vec<&str>>();
+            let mut split_strings = split_prelinks.into_iter().map(|s| s.to_string()).collect();
+            sources.append(&mut split_strings);
+        }
+
+        args.append(&mut sources);
 
         if let Some(mut user_compiler_args) = EnvArgs::Gcc.as_args() {
             args.append(&mut user_compiler_args);
