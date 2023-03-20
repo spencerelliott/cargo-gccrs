@@ -204,13 +204,15 @@ impl Args {
             args.append(&mut split_strings);
         }
 
-        let mut sources = self.source_files.clone();
+        let mut sources = Vec::new();
 
         if let Ok(prelinks) = prelink_vars {
             let split_prelinks = prelinks.split(' ').collect::<Vec<&str>>();
             let mut split_strings = split_prelinks.into_iter().map(|s| s.to_string()).collect();
             sources.append(&mut split_strings);
         }
+
+        sources.append(&mut self.source_files.clone());
 
         args.append(&mut sources);
 
